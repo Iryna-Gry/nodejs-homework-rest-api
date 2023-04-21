@@ -8,6 +8,11 @@ const addSchema = Joi.object({
   email: Joi.string().email().required(),
   phone: Joi.string().required(),
 });
+const putSchema = Joi.object({
+  name: Joi.string(),
+  email: Joi.string().email(),
+  phone: Joi.string(),
+});
 
 const getContacts = async (req, res) => {
   const result = await contacts.listContacts();
@@ -41,17 +46,12 @@ const deleteContact = async (req, res) => {
   res.status(200).json({ message: "contact deleted" });
 };
 const putContact = async (req, res) => {
-  const { error } = addSchema.validate(req.body);
+  const { error } = putSchema.validate(req.body);
   if (error) {
     throw HttpError(400, error.message);
   }
   const { contactId } = req.params;
-  const { name, email, phone } = req.body;
-  const result = await contacts.updateContact(contactId, {
-    name,
-    email,
-    phone,
-  });
+  const result = await contacts.updateContact(contactId, req.body);
   if (!result) {
     throw HttpError(404, "Not Found");
   }
