@@ -6,13 +6,17 @@ const { addSchema, putSchema, patchSchema } = schemas;
 
 const getContacts = async (req, res) => {
   const { _id: owner } = req.user;
-  const { page = 1, limit = 20 } = req.query;
+  const { page = 1, limit = 20, favorite } = req.query;
   const skip = (page - 1) * limit;
   const result = await Contact.find({ owner }, "-createdAt -updatedAt", {
     skip,
     limit,
   });
-  res.status(200).json(result);
+  favorite
+    ? res
+        .status(200)
+        .json(result.filter((item) => String(item.favorite) === favorite))
+    : res.status(200).json(result);
 };
 
 const getContactById = async (req, res) => {

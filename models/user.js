@@ -37,10 +37,16 @@ const loginSchema = Joi.object({
   email: Joi.string().pattern(emailRegExp).required(),
   password: Joi.string().required().min(8),
 });
-
+const patchSubSchema = Joi.object({
+  subscription: Joi.string()
+    .valid("starter", "pro", "business")
+    .lowercase()
+    .required(),
+});
 const schemas = {
   registerSchema,
   loginSchema,
+  patchSubSchema,
 };
 userSchema.post("save", handleMongooseError);
 const User = model("user", userSchema);

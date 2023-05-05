@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 const { HttpError, ctrlWrapper } = require("../helpers");
 
 dotenv.config();
-const { registerSchema, loginSchema } = schemas;
+const { registerSchema, loginSchema, patchSubSchema } = schemas;
 const { SECRET_KEY } = process.env;
 
 const register = async (req, res) => {
@@ -69,9 +69,25 @@ const logout = async (req, res) => {
   res.status(204).json();
 };
 
+const updateSub = async (req, res) => {
+  const { error } = patchSubSchema.validate(req.body);
+  if (error) {
+    throw HttpError(400, error.message);
+  }
+  const { id } = req.user;
+  const result = await User.findByIdAndUpdate(id, req.body, {
+    new: true,
+  });
+  if (!result) {
+    throw HttpError(404, "Not Found");
+  }
+  res.json({ email: result.email, subscription: result.subscription });
+};
+
 module.exports = {
   register: ctrlWrapper(register),
   login: ctrlWrapper(login),
   getCurrent: ctrlWrapper(getCurrent),
   logout: ctrlWrapper(logout),
+  updateSub: ctrlWrapper(updateSub),
 };
