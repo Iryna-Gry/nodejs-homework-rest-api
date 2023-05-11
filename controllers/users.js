@@ -2,6 +2,13 @@ const { User, schemas } = require("../models/user");
 const bcrypt = require("bcrypt");
 const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
+const path = require("path");
+const fs = require("fs/promises");
+const gravatar = require("gravatar");
+const jimp = require("jimp");
+const {
+  multerObj: { tempDir, storeImage },
+} = require("../middlewares");
 
 const { HttpError, ctrlWrapper } = require("../helpers");
 
@@ -20,13 +27,23 @@ const register = async (req, res) => {
   if (user) {
     throw HttpError(409, "Email in use");
   }
+  const avatarURL = gravatar.url(email, {
+    s: "250",
+    d: "mp",
+    protocol: "https",
+  });
   const hashPassword = await bcrypt.hash(password, 10);
   const newUser = await User.create({
     ...req.body,
     password: hashPassword,
+    avatarURL,
   });
   res.status(201).json({
-    user: { email: newUser.email, subscription: newUser.subscription },
+    user: {
+      email: newUser.email,
+      subscription: newUser.subscription,
+      avatarURL: newUser.avatarURL,
+    },
   });
 };
 
@@ -59,8 +76,8 @@ const login = async (req, res) => {
   });
 };
 const getCurrent = async (req, res) => {
-  const { email, subscription } = req.user;
-  res.status(200).json({ email, subscription });
+  const { email, subscription, avatarURL } = req.user;
+  res.status(200).json({ avatarURL, email, subscription });
 };
 
 const logout = async (req, res) => {
@@ -81,7 +98,41 @@ const updateSub = async (req, res) => {
   if (!result) {
     throw HttpError(404, "Not Found");
   }
-  res.json({ email: result.email, subscription: result.subscription });
+  res.json({
+    avatarURL: result.avatarURL,
+    email: result.email,
+    subscription: result.subscription,
+  });
+};
+const uploadAvatar = async (req, res, next) => {
+  const { path: tempUpload, originalname } = req.file;
+  const { _id } = req.user;
+
+  const image = await jimp.read(tempUpload);
+  image
+    .resize(250, 250, function (err) {
+      if (err) throw err;
+    })
+    .write(tempUpload);
+
+  const filename = `${_id}_${originalname}`;
+  const resUpload = path.join(storeImage, filename);
+  await fs.rename(tempUpload, resUpload);
+  const avatarURL = path.join("avatars", filename);
+
+  const result = await User.findByIdAndUpdate(
+    _id,
+    { avatarURL },
+    {
+      new: true,
+    }
+  );
+  if (!result) {
+    throw HttpError(404, "Not Found");
+  }
+  res.json({
+    avatarURL: result.avatarURL,
+  });
 };
 
 module.exports = {
@@ -90,4 +141,5 @@ module.exports = {
   getCurrent: ctrlWrapper(getCurrent),
   logout: ctrlWrapper(logout),
   updateSub: ctrlWrapper(updateSub),
+  uploadAvatar: ctrlWrapper(uploadAvatar),
 };
